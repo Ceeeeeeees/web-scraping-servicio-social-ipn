@@ -1,0 +1,62 @@
+---
+/**
+ * Barra de navegación superior.
+ *
+ * Incluye el logotipo, los enlaces principales y el botón para alternar
+ * entre modo claro y oscuro. Los enlaces usan BASE_URL para funcionar
+ * igual en local y en GitHub Pages.
+ */
+import { Sun, Moon } from "@lucide/astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const enlaces = [
+  { texto: "Inicio", href: `${base}/` },
+  { texto: "Convocatorias", href: `${base}/convocatorias` },
+  { texto: "Acerca de", href: `${base}/acerca-de` },
+];
+---
+
+<header
+  class="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80"
+>
+  <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <a href={`${base}/`} class="text-lg font-bold tracking-tight">
+      Servicio<span class="text-primario-600 dark:text-primario-400">Social</span>MX
+    </a>
+
+    <div class="flex items-center gap-1 sm:gap-4">
+      {
+        enlaces.map((enlace) => (
+          <a
+            href={enlace.href}
+            class="rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:px-3 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            {enlace.texto}
+          </a>
+        ))
+      }
+
+      <!-- Botón de tema: alterna la clase "dark" en <html> y guarda la preferencia -->
+      <button
+        id="boton-tema"
+        type="button"
+        aria-label="Cambiar entre modo claro y oscuro"
+        class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+      >
+        <!-- Sol: visible en modo oscuro -->
+        <Sun class="hidden size-5 dark:block" />
+        <!-- Luna: visible en modo claro -->
+        <Moon class="size-5 dark:hidden" />
+      </button>
+    </div>
+  </nav>
+</header>
+
+<script>
+  // Alterna el tema y persiste la elección en localStorage
+  document.getElementById("boton-tema")?.addEventListener("click", () => {
+    const esOscuro = document.documentElement.classList.toggle("dark");
+    localStorage.setItem("tema", esOscuro ? "oscuro" : "claro");
+  });
+</script>

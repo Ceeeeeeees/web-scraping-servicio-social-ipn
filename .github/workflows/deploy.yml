@@ -1,0 +1,64 @@
+# Workflow de despliegue en GitHub Pages
+#
+# Construye el frontend (carpeta web/) con Astro y publica el resultado
+# en GitHub Pages. Se ejecuta en cada push a main —incluidos los commits
+# automáticos del workflow de scraping— y manualmente desde Actions.
+#
+# Requisito: en Settings → Pages, configurar "Source: GitHub Actions".
+# Recordar también descomentar `site` y `base` en web/astro.config.mjs.
+
+name: Desplegar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permisos mínimos que exige el despliegue oficial a Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita despliegues simultáneos; el más reciente gana
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias del frontend
+        working-directory: web
+        run: npm ci
+
+      - name: Construir el sitio con Astro
+        working-directory: web
+        run: npm run build
+
+      - name: Subir artefacto para Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

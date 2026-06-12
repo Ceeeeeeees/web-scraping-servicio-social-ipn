@@ -1,0 +1,192 @@
+---
+/**
+ * Panel de filtros interactivos para convocatorias.
+ *
+ * Recibe la lista completa de convocatorias, extrae los valores únicos
+ * de escuela y carrera usando el categorizador, y genera los dropdowns correspondientes.
+ */
+import type { Convocatoria } from "../types/convocatoria";
+import {
+  categorizarCarrera,
+  entidadDeUbicacion,
+  formatearUbicacion,
+  ubicacionDeConvocatoria,
+} from "../utils/categorizer";
+
+interface Props {
+  convocatorias: Convocatoria[];
+}
+
+const { convocatorias = [] } = Astro.props;
+
+// Categorizar y obtener listas únicas
+const todasLasCarreras = convocatorias.flatMap((c) => c.carreras || []);
+const categorizadas = todasLasCarreras.map(categorizarCarrera);
+
+const escuelasUnicas = Array.from(new Set(categorizadas.map((c) => c.escuela)))
+  .filter(Boolean)
+  .sort((a, b) => a.localeCompare(b));
+
+// Mapear carreras únicas a su escuela para la lógica del frontend
+const carrerasUnicasMap = new Map<string, string>();
+categorizadas.forEach((c) => {
+  if (c.nombreOriginal && c.escuela) {
+    carrerasUnicasMap.set(c.nombreOriginal, c.escuela);
+  }
+});
+
+const carrerasUnicas = Array.from(carrerasUnicasMap.keys()).sort((a, b) =>
+  a.localeCompare(b)
+);
+
+// Obtener los niveles asociados a cada escuela y cada carrera
+const nivelesPorEscuela = new Map<string, Set<"medio-superior" | "superior">>();
+categorizadas.forEach((c) => {
+  if (c.escuela && c.nivel) {
+    if (!nivelesPorEscuela.has(c.escuela)) {
+      nivelesPorEscuela.set(c.escuela, new Set());
+    }
+    nivelesPorEscuela.get(c.escuela)!.add(c.nivel);
+  }
+});
+
+const nivelPorCarrera = new Map<string, "medio-superior" | "superior">();
+categorizadas.forEach((c) => {
+  if (c.nombreOriginal && c.nivel) {
+    nivelPorCarrera.set(c.nombreOriginal, c.nivel);
+  }
+});
+
+// Ubicaciones únicas (normalizadas, misma fuente que usa la tarjeta),
+// agrupadas por entidad para el dropdown jerárquico. Los valores genéricos
+// "CDMX" y "ESTADO DE MEXICO" no se listan como opción individual: ya los
+// cubren las opciones "Toda la CDMX" / "Todo el Estado de México".
+const ubicacionesUnicas = Array.from(
+  new Set(convocatorias.map(ubicacionDeConvocatoria))
+)
+  .filter(Boolean)
+  .sort((a, b) => a.localeCompare(b));
+
+const ubicacionesCdmx = ubicacionesUnicas.filter(
+  (u) => entidadDeUbicacion(u) === "CDMX" && u !== "CDMX"
+);
+const ubicacionesEdomex = ubicacionesUnicas.filter(
+  (u) => entidadDeUbicacion(u) === "EDOMEX" && u !== "ESTADO DE MEXICO"
+);
+const ubicacionesOtras = ubicacionesUnicas.filter(
+  (u) => entidadDeUbicacion(u) === "OTRA"
+);
+---
+
+<div
+  class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end rounded-3xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40 backdrop-blur-sm"
+>
+  <!-- Filtro por Apoyo -->
+  <div class="flex flex-col gap-1.5 w-full">
+    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Apoyo</span>
+    <button
+      id="filtro-apoyo"
+      type="button"
+      data-active="false"
+      class="flex h-10 w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+    >
+      Solo con apoyo
+    </button>
+  </div>
+
+  <!-- Nivel -->
+  <div class="flex flex-col gap-1.5 w-full">
+    <label for="filtro-nivel" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Nivel</label>
+    <select
+      id="filtro-nivel"
+      class="h-10 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primario-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+    >
+      <option value="">Todos los niveles</option>
+      <option value="superior">Superior (Universidad)</option>
+      <option value="medio-superior">Medio Superior (Vocacional)</option>
+    </select>
+  </div>
+
+  <!-- Escuela / Plantel -->
+  <div class="flex flex-col gap-1.5 w-full">
+    <label for="filtro-escuela" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Escuela / Plantel</label>
+    <select
+      id="filtro-escuela"
+      class="h-10 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primario-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+    >
+      <option value="">Todas las escuelas</option>
+      {
+        escuelasUnicas.map((escuela) => {
+          const niveles = Array.from(nivelesPorEscuela.get(escuela) || []);
+          return (
+            <option value={escuela} data-niveles={niveles.join(",")}>
+              {escuela}
+            </option>
+          );
+        })
+      }
+    </select>
+  </div>
+
+  <!-- Estado -->
+  <div class="flex flex-col gap-1.5 w-full">
+    <label for="filtro-estado" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Estado</label>
+    <select
+      id="filtro-estado"
+      class="h-10 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primario-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+    >
+      <option value="">Todos los estados</option>
+      <option value="CDMX">CDMX</option>
+      <option value="EDOMEX">Estado de México</option>
+      <option value="OTRA">Otros Estados</option>
+    </select>
+  </div>
+
+  <!-- Municipio / Alcaldía -->
+  <div class="flex flex-col gap-1.5 w-full">
+    <label for="filtro-municipio" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Alcaldía / Municipio</label>
+    <select
+      id="filtro-municipio"
+      class="h-10 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primario-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+    >
+      <option value="">Todos los municipios</option>
+      {
+        ubicacionesCdmx.map((ubicacion) => (
+          <option value={ubicacion} data-estado="CDMX">{formatearUbicacion(ubicacion)}</option>
+        ))
+      }
+      {
+        ubicacionesEdomex.map((ubicacion) => (
+          <option value={ubicacion} data-estado="EDOMEX">{formatearUbicacion(ubicacion)}</option>
+        ))
+      }
+      {
+        ubicacionesOtras.map((ubicacion) => (
+          <option value={ubicacion} data-estado="OTRA">{formatearUbicacion(ubicacion)}</option>
+        ))
+      }
+    </select>
+  </div>
+
+  <!-- Carrera -->
+  <div class="flex flex-col gap-1.5 w-full sm:col-span-2 lg:col-span-5">
+    <label for="filtro-carrera" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Carrera específica</label>
+    <select
+      id="filtro-carrera"
+      class="h-10 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primario-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 cursor-pointer"
+    >
+      <option value="">Todas las carreras</option>
+      {
+        carrerasUnicas.map((carrera) => (
+          <option
+            value={carrera}
+            data-escuela={carrerasUnicasMap.get(carrera)}
+            data-nivel={nivelPorCarrera.get(carrera)}
+          >
+            {carrera}
+          </option>
+        ))
+      }
+    </select>
+  </div>
+</div>

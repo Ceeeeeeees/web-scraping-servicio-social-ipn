@@ -1,0 +1,30 @@
+---
+/**
+ * Pie de página con información del proyecto.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const anio = new Date().getFullYear();
+---
+
+<footer class="border-t border-slate-200 dark:border-slate-800">
+  <div
+    class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-slate-500 sm:flex-row sm:px-6 dark:text-slate-400"
+  >
+    <p>
+      © {anio} <span class="whitespace-nowrap">Servicio<span class="text-primario-600 dark:text-primario-400">Social</span>MX</span> | Código abierto sin fines de lucro
+    </p>
+    <nav class="flex gap-4">
+      <a href={`${base}/acerca-de`} class="hover:text-slate-900 dark:hover:text-white">
+        Acerca de
+      </a>
+      <a
+        href="https://github.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="hover:text-slate-900 dark:hover:text-white"
+      >
+        GitHub
+      </a>
+    </nav>
+  </div>
+</footer>

@@ -1,0 +1,47 @@
+---
+/**
+ * Página principal: hero, búsqueda, estadísticas y convocatorias recientes.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
+import SearchBar from "../components/SearchBar.astro";
+import StatsSection from "../components/StatsSection.astro";
+import EmptyState from "../components/EmptyState.astro";
+import ConvocatoriaCard from "../components/ConvocatoriaCard.astro";
+import { obtenerConvocatorias, obtenerEstadisticas } from "../utils/data";
+
+// Las estadísticas y convocatorias recientes se calculan en build
+const stats = obtenerEstadisticas();
+const convocatoriasRecientes = obtenerConvocatorias().slice(0, 3);
+---
+
+<BaseLayout titulo="Inicio">
+  <Hero />
+
+  <div class="-mt-8 pb-4">
+    <SearchBar />
+  </div>
+
+  <StatsSection
+    total={stats.total}
+    conApoyo={stats.conApoyo}
+    universidades={stats.universidades}
+  />
+
+  <section class="mx-auto max-w-6xl px-4 pb-16">
+    <h2 class="mb-8 text-center text-2xl font-bold text-slate-900 dark:text-white">
+      Convocatorias recientes
+    </h2>
+    {
+      convocatoriasRecientes.length === 0 ? (
+        <EmptyState mensaje="Aún no hay convocatorias publicadas." />
+      ) : (
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {convocatoriasRecientes.map((convocatoria) => (
+            <ConvocatoriaCard convocatoria={convocatoria} />
+          ))}
+        </div>
+      )
+    }
+  </section>
+</BaseLayout>

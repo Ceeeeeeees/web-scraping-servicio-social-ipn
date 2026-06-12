@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://serviciosocialmx.github.io/schemas/convocatoria.schema.json",
+  "title": "Convocatoria",
+  "description": "Contrato oficial de datos entre el scraper y el frontend de ServicioSocialMX. Cada objeto representa una convocatoria de servicio social. El archivo convocatorias.json debe ser un arreglo de objetos que cumplan este esquema.",
+  "type": "object",
+  "required": [
+    "id",
+    "titulo",
+    "institucion",
+    "universidadOrigen",
+    "apoyoEconomico",
+    "url",
+    "estado"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identificador único y estable de la convocatoria. Convención: '<universidadOrigen>-<slug-del-titulo>'.",
+      "examples": ["ipn-desarrollo-web-dgtic"]
+    },
+    "titulo": {
+      "type": "string",
+      "description": "Nombre del programa o convocatoria tal como aparece en el portal de origen.",
+      "examples": ["Desarrollo de sistemas web institucionales"]
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Descripción de las actividades a realizar. Puede ser texto plano resumido.",
+      "examples": ["Apoyo en el desarrollo y mantenimiento de sistemas web internos."]
+    },
+    "institucion": {
+      "type": "string",
+      "description": "Dependencia, empresa u organismo que ofrece la convocatoria (no confundir con la universidad de origen).",
+      "examples": ["Secretaría de Educación Pública"]
+    },
+    "ubicacion": {
+      "type": ["string", "null"],
+      "description": "Delegación o municipio donde se realiza el servicio social, tal como lo reporta el portal de origen. Null si el portal no lo especifica. Es el dato pensado para el filtro por ubicación del frontend.",
+      "examples": ["MIGUEL HIDALGO", null]
+    },
+    "direccion": {
+      "type": ["string", "null"],
+      "description": "Domicilio completo del prestatario en texto plano (calle, número, colonia, demarcación). Null si el portal no lo especifica. Útil para construir enlaces a servicios de mapas.",
+      "examples": ["Calle: AV. GRANJAS, Núm. exterior: 618, Colonia: ANAHUAC, Delegación o Municipio: MIGUEL HIDALGO", null]
+    },
+    "universidadOrigen": {
+      "type": "string",
+      "description": "Identificador corto de la universidad de cuyo portal proviene la convocatoria. Debe coincidir con una clave de config.UNIVERSIDADES del scraper.",
+      "examples": ["ipn", "unam"]
+    },
+    "carreras": {
+      "type": "array",
+      "description": "Carreras a las que está dirigida la convocatoria. Arreglo vacío si aplica a todas.",
+      "items": { "type": "string" },
+      "examples": [["Ingeniería en Sistemas Computacionales", "Licenciatura en Ciencias de la Informática"]]
+    },
+    "apoyoEconomico": {
+      "type": "boolean",
+      "description": "Indica si la convocatoria ofrece apoyo económico. Es el campo clave del proyecto: el frontend lo destaca y permite filtrar por él.",
+      "examples": [true]
+    },
+    "monto": {
+      "type": ["number", "null"],
+      "description": "Monto mensual del apoyo en pesos mexicanos (MXN). Usar null si no hay apoyo o el portal no especifica la cantidad.",
+      "minimum": 0,
+      "examples": [2000, null]
+    },
+    "modalidad": {
+      "type": "string",
+      "description": "Modalidad en que se realiza el servicio social.",
+      "enum": ["presencial", "remota", "hibrida", "no-especificada"],
+      "default": "no-especificada"
+    },
+    "fechaPublicacion": {
+      "type": ["string", "null"],
+      "description": "Fecha en que se publicó la convocatoria, en formato ISO 8601 (AAAA-MM-DD). Null si el portal no la indica.",
+      "format": "date",
+      "examples": ["2026-06-01"]
+    },
+    "fechaLimite": {
+      "type": ["string", "null"],
+      "description": "Fecha límite para registrarse, en formato ISO 8601 (AAAA-MM-DD). Null si no hay fecha límite publicada.",
+      "format": "date",
+      "examples": ["2026-07-15"]
+    },
+    "url": {
+      "type": "string",
+      "description": "Enlace a la convocatoria original en el portal de la universidad.",
+      "format": "uri",
+      "examples": ["https://serviciosocial.ipn.mx/programa/12345"]
+    },
+    "estado": {
+      "type": "string",
+      "description": "Estado actual de la convocatoria. 'abierta': acepta registros; 'cerrada': ya no acepta; 'proxima': aún no abre.",
+      "enum": ["abierta", "cerrada", "proxima"]
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "id": "ipn-desarrollo-web-dgtic",
+      "titulo": "Desarrollo de sistemas web institucionales",
+      "descripcion": "Apoyo en el desarrollo y mantenimiento de sistemas web internos.",
+      "institucion": "Dirección General de Cómputo del IPN",
+      "ubicacion": "GUSTAVO A. MADERO",
+      "direccion": "Calle: AV. JUAN DE DIOS BÁTIZ, Núm. exterior: S/N, Colonia: LINDAVISTA, Delegación o Municipio: GUSTAVO A. MADERO",
+      "universidadOrigen": "ipn",
+      "carreras": ["Ingeniería en Sistemas Computacionales"],
+      "apoyoEconomico": true,
+      "monto": 2000,
+      "modalidad": "hibrida",
+      "fechaPublicacion": "2026-06-01",
+      "fechaLimite": "2026-07-15",
+      "url": "https://serviciosocial.ipn.mx/programa/12345",
+      "estado": "abierta"
+    }
+  ]
+}

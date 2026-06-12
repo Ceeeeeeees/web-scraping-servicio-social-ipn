@@ -1,0 +1,69 @@
+/* Estilos globales de ServicioSocialMX (Tailwind CSS v4) */
+
+@import "tailwindcss";
+
+/*
+ * Modo oscuro por clase:
+ * la variante `dark:` se activa cuando <html> tiene la clase "dark".
+ * El script inline de BaseLayout.astro añade o quita esa clase según
+ * la preferencia guardada en localStorage o la del sistema operativo.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Tokens de tema personalizados.
+ * `primario` es el color de marca; se usa como bg-primario-600, text-primario-400, etc.
+ * (Escala basada en el índigo de Tailwind.)
+ */
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-titulos: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  
+  /* Primario: Cobalt, Navy and Sky Blue palette */
+  --color-primario-50: #ecf7fc;
+  --color-primario-100: #d2eefa;
+  --color-primario-200: #addff6;
+  --color-primario-300: #82c8e5;
+  --color-primario-400: #4faed8;
+  --color-primario-500: #2692c8;
+  --color-primario-600: #0047ab;
+  --color-primario-700: #003b8e;
+  --color-primario-800: #002d6e;
+  --color-primario-900: #002050;
+  --color-primario-950: #000080;
+
+  /* Slate: Custom Cool Slate scale matching #6D8196 */
+  --color-slate-50: #f4f6f8;
+  --color-slate-100: #e8ecef;
+  --color-slate-200: #ced6de;
+  --color-slate-300: #a7b5c3;
+  --color-slate-400: #798da2;
+  --color-slate-500: #6d8196;
+  --color-slate-600: #506173;
+  --color-slate-700: #3f4c5a;
+  --color-slate-800: #2e3742;
+  --color-slate-900: #1d232a;
+  --color-slate-950: #0e1115;
+}
+
+/* Base: colores de fondo/texto que responden al modo oscuro */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* El cuerpo usa Geist (font-sans es la fuente por defecto de Tailwind) */
+  body {
+    @apply bg-white text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-200;
+  }
+
+  /* Los encabezados usan la fuente de títulos (Instrument Sans) */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-titulos;
+  }
+}

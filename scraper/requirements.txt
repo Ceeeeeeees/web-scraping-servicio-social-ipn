@@ -1,0 +1,17 @@
+# Dependencias del scraper de ServicioSocialMX
+# Instalar con: pip install -r requirements.txt
+
+# --- Scraping ---
+requests>=2.32          # Peticiones HTTP a los portales
+beautifulsoup4>=4.12    # Parseo de HTML
+lxml>=5.0               # Parser rápido usado por BeautifulSoup
+
+# --- Sitios que requieren JavaScript (descomentar si hace falta) ---
+# Tras instalar, ejecutar: playwright install chromium
+# playwright>=1.40
+
+# --- Pruebas ---
+pytest>=8.0
+
+# --- Validación del esquema compartido ---
+jsonschema>=4.21

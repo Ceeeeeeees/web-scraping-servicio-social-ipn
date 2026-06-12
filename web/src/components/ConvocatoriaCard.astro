@@ -1,0 +1,169 @@
+---
+/**
+ * Tarjeta de una convocatoria.
+ *
+ * Recibe una convocatoria y la muestra con detalles dinámicos.
+ * Añade atributos data-* para habilitar el filtrado dinámico en el cliente.
+ */
+import type { Convocatoria } from "../types/convocatoria";
+import { MapPin, ExternalLink } from "@lucide/astro";
+import {
+  categorizarCarrera,
+  eliminarEmojis,
+  entidadDeUbicacion,
+  formatearTitulo,
+  formatearUbicacion,
+  ubicacionDeConvocatoria,
+} from "../utils/categorizer";
+
+interface Props {
+  convocatoria: Convocatoria;
+}
+
+const { convocatoria } = Astro.props;
+
+// Limpiar emojis de los textos del portal de origen
+const tituloLimpio = formatearTitulo(eliminarEmojis(convocatoria.titulo));
+const descripcionLimpia = eliminarEmojis(convocatoria.descripcion);
+const institucionLimpia = eliminarEmojis(convocatoria.institucion);
+
+// Categorizar todas las carreras para filtros client-side
+const carrerasCategorizadas = (convocatoria.carreras || []).map(categorizarCarrera);
+
+const niveles = Array.from(new Set(carrerasCategorizadas.map((c) => c.nivel)));
+const escuelas = Array.from(new Set(carrerasCategorizadas.map((c) => c.escuela)));
+const carrerasLista = Array.from(new Set(carrerasCategorizadas.map((c) => c.nombreOriginal)));
+
+const dataNiveles = niveles.join(",");
+const dataEscuelas = escuelas.join(",");
+const dataCarreras = carrerasLista.join("|");
+
+// Ubicación: dato real del scraper, con la heurística por texto como respaldo
+const ubicacionValor = ubicacionDeConvocatoria(convocatoria);
+const ubicacion = formatearUbicacion(ubicacionValor);
+const entidadValor = entidadDeUbicacion(ubicacionValor);
+
+// Enlace a Google Maps con el domicilio completo (o la institución si falta)
+const urlMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  convocatoria.direccion ?? institucionLimpia
+)}`;
+
+// Generar texto de búsqueda optimizado usando textos limpios
+const searchText = [
+  tituloLimpio,
+  institucionLimpia,
+  descripcionLimpia,
+  ubicacion,
+  ...carrerasLista,
+  ...escuelas
+].join(" ").toLowerCase();
+
+// Etiquetas legibles para el estado de la convocatoria
+const etiquetasEstado: Record<Convocatoria["estado"], string> = {
+  abierta: "Abierta",
+  cerrada: "Cerrada",
+  proxima: "Próximamente",
+};
+---
+
+<article
+  class="convocatoria-card flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+  data-apoyo={convocatoria.apoyoEconomico ? "true" : "false"}
+  data-ubicacion={ubicacionValor}
+  data-entidad={entidadValor}
+  data-niveles={dataNiveles}
+  data-escuelas={dataEscuelas}
+  data-carreras={dataCarreras}
+  data-search-text={searchText}
+>
+  <!-- Cabecera: Institución y Apoyo -->
+  <div class="flex items-start justify-between gap-3">
+    <span class="font-titulos text-lg font-bold uppercase tracking-wide text-slate-900 dark:text-white">
+      {institucionLimpia}
+    </span>
+    {
+      convocatoria.apoyoEconomico && (
+        <span class="shrink-0 flex items-center rounded-full bg-primario-600 border border-primario-600/20 px-2.5 py-0.5 text-xs font-semibold text-white">
+          Con apoyo
+          {convocatoria.monto != null && ` · $${convocatoria.monto.toLocaleString("es-MX")}/mes`}
+        </span>
+      )
+    }
+  </div>
+
+  <!-- Título y Ubicación -->
+  <div class="-mt-1">
+    <h3 class="font-medium text-slate-600 dark:text-slate-400 leading-snug text-sm">
+      {tituloLimpio}
+    </h3>
+    
+    <!-- Ubicación (enlaza al domicilio del prestatario en Google Maps) -->
+    <a
+      href={urlMaps}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Ver ubicación en Google Maps"
+      class="flex items-center gap-1 mt-1 text-xs font-semibold text-primario-600 hover:text-primario-700 dark:text-primario-300 dark:hover:text-primario-200 underline underline-offset-2 w-fit"
+    >
+      <MapPin class="size-3.5 text-primario-500 dark:text-primario-400 shrink-0" />
+      <span>{ubicacion}</span>
+      <ExternalLink class="size-3 text-primario-400/80 dark:text-primario-400/70 shrink-0 ml-0.5" />
+    </a>
+  </div>
+
+  <!-- Descripción -->
+  {
+    descripcionLimpia && (
+      <p class="line-clamp-3 text-[13px] leading-relaxed text-slate-500 dark:text-slate-450">
+        {descripcionLimpia}
+      </p>
+    )
+  }
+
+  <!-- Carreras (Badges más redondos y color primario) -->
+  {
+    carrerasLista.length > 0 && (
+      <div class="flex flex-wrap gap-1.5 mt-1">
+        {carrerasLista.slice(0, 2).map((carr) => {
+          const nombreSimplificado = carr
+            .replace(/ESCOM\s+/i, "")
+            .replace(/UPIITA\s+/i, "")
+            .replace(/ESFM\s+/i, "")
+            .replace(/ESIME\s+[A-Z]+\s+/i, "")
+            .replace(/INGENIERÍA\s+EN\s+/i, "Ing. ")
+            .replace(/LICENCIATURA\s+EN\s+/i, "Lic. ");
+          
+          return (
+            <span class="rounded-full bg-primario-50 border border-primario-100 text-primario-700 dark:bg-primario-950/40 dark:text-primario-300 dark:border-primario-900/30 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+              {nombreSimplificado}
+            </span>
+          );
+        })}
+        {carrerasLista.length > 2 && (
+          <span class="rounded-full bg-primario-50 border border-primario-100 text-primario-700 dark:bg-primario-950/40 dark:text-primario-300 dark:border-primario-900/30 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+            +{carrerasLista.length - 2} más
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  <!-- Footer de la tarjeta -->
+  <div class="mt-auto flex items-center justify-between pt-3 text-xs border-t border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+    <span class="uppercase tracking-wider font-semibold text-[10px]">{convocatoria.universidadOrigen}</span>
+    <span class={`font-semibold text-[10px] uppercase tracking-wider ${convocatoria.estado === 'abierta' ? 'text-primario-600 dark:text-primario-300' : 'text-slate-500'}`}>
+      {etiquetasEstado[convocatoria.estado]}
+    </span>
+  </div>
+
+  <!-- Enlace -->
+  <a
+    href={convocatoria.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    class="text-sm font-semibold text-primario-600 hover:underline dark:text-primario-400 inline-flex items-center gap-1"
+  >
+    Ver convocatoria original
+    <ExternalLink class="size-3.5" />
+  </a>
+</article>

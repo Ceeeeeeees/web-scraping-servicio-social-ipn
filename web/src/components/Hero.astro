@@ -1,0 +1,41 @@
+---
+/**
+ * Sección principal (hero) de la portada.
+ *
+ * Presenta el propósito del sitio y un llamado a la acción hacia la
+ * página de convocatorias.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<section class="bg-gradient-to-b from-primario-50 to-white px-4 py-16 text-center sm:py-24 dark:from-slate-900 dark:to-slate-950">
+  <div class="mx-auto max-w-3xl">
+    <p
+      class="mb-4 inline-block rounded-full bg-primario-100 px-3 py-1 text-xs font-semibold text-primario-700 dark:bg-primario-950 dark:text-primario-300"
+    >
+      Hecho por y para estudiantes de México
+    </p>
+    <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl dark:text-white">
+      Encuentra tu servicio social
+      <span class="text-primario-600 dark:text-primario-400">con apoyo económico</span>
+    </h1>
+    <p class="mx-auto mt-4 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
+      Centralizamos las convocatorias de servicio social del IPN en un solo
+      lugar, para que dediques tu tiempo a elegir bien, no a buscar.
+    </p>
+    <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+      <a
+        href={`${base}/convocatorias`}
+        class="rounded-xl bg-primario-600 px-6 py-3 font-semibold text-white shadow-sm hover:bg-primario-700"
+      >
+        Ver convocatorias
+      </a>
+      <a
+        href={`${base}/acerca-de`}
+        class="rounded-xl border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+      >
+        Conoce el proyecto
+      </a>
+    </div>
+  </div>
+</section>

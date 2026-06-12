@@ -1,0 +1,24 @@
+# --- Python (scraper) ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+scraper/logs/*.log
+scraper/output/avance.json
+
+# --- Node / Astro (web) ---
+node_modules/
+web/dist/
+web/.astro/
+
+# --- Entornos y secretos ---
+.env
+.env.local
+
+# --- Editores y sistema ---
+.idea/
+.vscode/
+.DS_Store
+CLAUDE.md
+.claude/

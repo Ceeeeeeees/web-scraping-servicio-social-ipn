@@ -1,0 +1,52 @@
+---
+/**
+ * Página "Acerca de": explica el propósito y funcionamiento del proyecto.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  titulo="Acerca de"
+  descripcion="Qué es ServicioSocialMX, cómo funciona y por qué existe."
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">
+      Acerca de Servicio<span class="text-primario-600 dark:text-primario-400">Social</span>MX
+    </h1>
+
+    <div class="mt-6 space-y-4 leading-relaxed text-slate-600 dark:text-slate-300">
+      <p>
+        Encontrar un servicio social <strong>con apoyo económico</strong> es
+        difícil: las convocatorias están dispersas en portales
+        poco amigables y rara vez se puede filtrar por lo que más importa a los
+        estudiantes.
+      </p>
+      <p>
+        Servicio<span class="text-primario-600 dark:text-primario-400">Social</span>MX centraliza esas convocatorias en un solo lugar.
+        Un scraper de código abierto recolecta periódicamente la información de
+        los portales oficiales y la publica aquí en un formato claro,
+        consultable y gratuito.
+      </p>
+      <p>
+        El proyecto inicia con el
+        <strong>Instituto Politécnico Nacional (IPN)</strong> y está diseñado
+        para crecer e integrar más universidades de México en el futuro.
+      </p>
+
+      <h2 class="pt-4 text-xl font-semibold text-slate-900 dark:text-white">
+        ¿Cómo funciona?
+      </h2>
+      <ol class="list-decimal space-y-2 pl-5">
+        <li>El scraper visita los portales oficiales de servicio social del IPN.</li>
+        <li>Extrae y normaliza las convocatorias en un formato común.</li>
+        <li>Los datos se publican como archivos estáticos en este sitio.</li>
+      </ol>
+
+      <p class="pt-4">
+        Todo el proceso es automático, transparente y sin costo. La información
+        siempre enlaza a la convocatoria original para que el registro se haga
+        en el portal oficial correspondiente.
+      </p>
+    </div>
+  </section>
+</BaseLayout>

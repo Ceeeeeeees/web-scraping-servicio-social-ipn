@@ -1,0 +1,26 @@
+---
+/**
+ * Estado vacío: se muestra cuando aún no hay convocatorias que listar.
+ */
+import { Inbox } from "@lucide/astro";
+
+interface Props {
+  /** Mensaje principal opcional para personalizar el contexto. */
+  mensaje?: string;
+}
+
+const {
+  mensaje = "Aún no hay convocatorias publicadas.",
+} = Astro.props;
+---
+
+<div
+  id="empty-state"
+  class="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center dark:border-slate-700"
+>
+  <Inbox class="size-12 text-slate-400 dark:text-slate-600 stroke-[1.5]" />
+  <p class="font-semibold text-slate-700 dark:text-slate-200">{mensaje}</p>
+  <p class="text-sm text-slate-500 dark:text-slate-400">
+    Intenta cambiar los filtros de búsqueda o vuelve más tarde.
+  </p>
+</div>

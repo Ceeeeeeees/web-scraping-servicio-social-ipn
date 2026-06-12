@@ -1,0 +1,27 @@
+---
+/**
+ * Página de error 404. GitHub Pages la sirve automáticamente para rutas
+ * inexistentes si el archivo generado se llama 404.html.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<BaseLayout titulo="Página no encontrada">
+  <section class="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
+    <p class="text-7xl font-extrabold text-primario-600 dark:text-primario-400">404</p>
+    <h1 class="mt-4 text-2xl font-bold text-slate-900 dark:text-white">
+      Página no encontrada
+    </h1>
+    <p class="mt-2 text-slate-600 dark:text-slate-300">
+      La página que buscas no existe o fue movida.
+    </p>
+    <a
+      href={`${base}/`}
+      class="mt-8 rounded-xl bg-primario-600 px-6 py-3 font-semibold text-white hover:bg-primario-700"
+    >
+      Volver al inicio
+    </a>
+  </section>
+</BaseLayout>

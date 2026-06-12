@@ -1,0 +1,294 @@
+---
+/**
+ * Página de convocatorias.
+ *
+ * Lee el JSON estático en build y muestra una tarjeta por convocatoria;
+ * si no hay datos, muestra el estado vacío.
+ * Los filtros y la búsqueda se aplican dinámicamente en el cliente.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SearchBar from "../components/SearchBar.astro";
+import FilterPanel from "../components/FilterPanel.astro";
+import ConvocatoriaCard from "../components/ConvocatoriaCard.astro";
+import EmptyState from "../components/EmptyState.astro";
+import { obtenerConvocatorias } from "../utils/data";
+
+const convocatorias = obtenerConvocatorias();
+---
+
+<BaseLayout
+  titulo="Convocatorias"
+  descripcion="Todas las convocatorias de servicio social disponibles, con filtros por apoyo económico, universidad, nivel, área, escuela, carrera y ubicación."
+>
+  <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div class="mb-8">
+      <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+        Convocatorias
+      </h1>
+      <p class="mt-2 text-slate-650 dark:text-slate-350">
+        Explora y filtra las plazas disponibles para tu servicio social.
+      </p>
+    </div>
+
+    <div class="space-y-5">
+      <SearchBar />
+      <FilterPanel convocatorias={convocatorias} />
+    </div>
+
+    <div class="mt-10">
+      {
+        convocatorias.length === 0 ? (
+          <EmptyState mensaje="Aún no hay convocatorias registradas." />
+        ) : (
+          <div>
+            <div id="convocatorias-grid" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {convocatorias.map((convocatoria) => (
+                <ConvocatoriaCard convocatoria={convocatoria} />
+              ))}
+            </div>
+            
+            <div id="no-results-state" class="hidden py-8">
+              <EmptyState mensaje="No encontramos convocatorias que coincidan con tus filtros." />
+            </div>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  // Obtener elementos del DOM
+  const searchInput = document.getElementById("search-input") as HTMLInputElement | null;
+  const apoyoBtn = document.getElementById("filtro-apoyo");
+  const nivelSelect = document.getElementById("filtro-nivel") as HTMLSelectElement | null;
+  const escuelaSelect = document.getElementById("filtro-escuela") as HTMLSelectElement | null;
+  const carreraSelect = document.getElementById("filtro-carrera") as HTMLSelectElement | null;
+  const estadoSelect = document.getElementById("filtro-estado") as HTMLSelectElement | null;
+  const municipioSelect = document.getElementById("filtro-municipio") as HTMLSelectElement | null;
+  const grid = document.getElementById("convocatorias-grid");
+  const noResultsState = document.getElementById("no-results-state");
+  const cards = document.querySelectorAll(".convocatoria-card");
+
+  if (apoyoBtn && cards.length > 0) {
+    // Función para actualizar las opciones habilitadas en Escuela, Carrera y Municipio en cascada
+    const actualizarOpcionesFiltros = () => {
+      const nivelVal = nivelSelect?.value || "";
+      const escuelaVal = escuelaSelect?.value || "";
+      const estadoVal = estadoSelect?.value || "";
+
+      // 1. Filtrar las escuelas según el nivel seleccionado
+      if (escuelaSelect) {
+        let escuelaValida = false;
+        Array.from(escuelaSelect.options).forEach((opcion) => {
+          if (!opcion.value) return; // Saltar "Todas las escuelas"
+
+          const nivelesEscuela = (opcion.getAttribute("data-niveles") || "").split(",");
+          
+          // Si no hay nivel seleccionado, o el nivel de la escuela coincide con el seleccionado
+          if (!nivelVal || nivelesEscuela.includes(nivelVal)) {
+            opcion.disabled = false;
+            opcion.hidden = false;
+            if (opcion.value === escuelaVal) {
+              escuelaValida = true;
+            }
+          } else {
+            opcion.disabled = true;
+            opcion.hidden = true;
+          }
+        });
+
+        // Si la escuela seleccionada actualmente ya no es válida, la reseteamos
+        if (!escuelaValida && escuelaSelect.value !== "") {
+          escuelaSelect.value = "";
+        }
+      }
+
+      // 2. Filtrar las carreras según el nivel y la escuela seleccionados
+      if (carreraSelect) {
+        const escuelaActual = escuelaSelect?.value || "";
+        let carreraValida = false;
+
+        Array.from(carreraSelect.options).forEach((opcion) => {
+          if (!opcion.value) return; // Saltar "Todas las carreras"
+
+          const escuelaOpcion = opcion.getAttribute("data-escuela") || "";
+          const nivelOpcion = opcion.getAttribute("data-nivel") || "";
+
+          // Comprobar coincidencia con Nivel y Escuela
+          const coincideNivel = !nivelVal || nivelOpcion === nivelVal;
+          const coincideEscuela = !escuelaActual || escuelaOpcion === escuelaActual;
+
+          if (coincideNivel && coincideEscuela) {
+            opcion.disabled = false;
+            opcion.hidden = false;
+            if (opcion.value === carreraSelect.value) {
+              carreraValida = true;
+            }
+          } else {
+            opcion.disabled = true;
+            opcion.hidden = true;
+          }
+        });
+
+        // Si la carrera seleccionada actualmente ya no es válida, la reseteamos
+        if (!carreraValida && carreraSelect.value !== "") {
+          carreraSelect.value = "";
+        }
+      }
+
+      // 3. Filtrar los municipios/alcaldías según el estado seleccionado
+      if (municipioSelect) {
+        let municipioValido = false;
+        Array.from(municipioSelect.options).forEach((opcion) => {
+          if (!opcion.value) return; // Saltar "Todos los municipios"
+
+          const estadoOpcion = opcion.getAttribute("data-estado") || "";
+
+          if (!estadoVal || estadoOpcion === estadoVal) {
+            opcion.disabled = false;
+            opcion.hidden = false;
+            if (opcion.value === municipioSelect.value) {
+              municipioValido = true;
+            }
+          } else {
+            opcion.disabled = true;
+            opcion.hidden = true;
+          }
+        });
+
+        // Si la alcaldía/municipio seleccionado ya no es válido, lo reseteamos
+        if (!municipioValido && municipioSelect.value !== "") {
+          municipioSelect.value = "";
+        }
+      }
+    };
+
+    // Función principal para aplicar filtros
+    const aplicarFiltros = () => {
+      const searchVal = searchInput?.value.toLowerCase().trim() || "";
+      const isApoyoOnly = apoyoBtn.getAttribute("data-active") === "true";
+      const nivelVal = nivelSelect?.value || "";
+      const escuelaVal = escuelaSelect?.value || "";
+      const carreraVal = carreraSelect?.value || "";
+      const estadoVal = estadoSelect?.value || "";
+      const municipioVal = municipioSelect?.value || "";
+
+      let visibleCount = 0;
+
+      cards.forEach((cardEl) => {
+        const card = cardEl as HTMLElement;
+
+        // 1. Filtro por Búsqueda de Texto
+        const searchText = card.getAttribute("data-search-text") || "";
+        const matchesSearch = !searchVal || searchText.includes(searchVal);
+
+        // 2. Filtro por Apoyo Económico
+        const isApoyo = card.getAttribute("data-apoyo") === "true";
+        const matchesApoyo = !isApoyoOnly || isApoyo;
+
+        // 3. Filtro por Nivel
+        const cardNiveles = (card.getAttribute("data-niveles") || "").split(",");
+        const matchesNivel = !nivelVal || cardNiveles.includes(nivelVal);
+
+        // 4. Filtro por Escuela
+        const cardEscuelas = (card.getAttribute("data-escuelas") || "").split(",");
+        const matchesEscuela = !escuelaVal || cardEscuelas.includes(escuelaVal);
+
+        // 5. Filtro por Carrera
+        const cardCarreras = (card.getAttribute("data-carreras") || "").split("|");
+        const matchesCarrera = !carreraVal || cardCarreras.includes(carreraVal);
+
+        // 6. Filtro por Estado y Municipio
+        const cardEntidad = card.getAttribute("data-entidad") || "";
+        const cardUbicacion = card.getAttribute("data-ubicacion") || "";
+
+        const matchesEstado = !estadoVal || cardEntidad === estadoVal;
+        const matchesMunicipio = !municipioVal || cardUbicacion === municipioVal;
+        const matchesUbicacion = matchesEstado && matchesMunicipio;
+
+        const visible =
+          matchesSearch &&
+          matchesApoyo &&
+          matchesNivel &&
+          matchesEscuela &&
+          matchesCarrera &&
+          matchesUbicacion;
+
+        if (visible) {
+          card.classList.remove("hidden");
+          visibleCount++;
+        } else {
+          card.classList.add("hidden");
+        }
+      });
+
+      // Mostrar/ocultar estado vacío
+      if (visibleCount === 0) {
+        grid?.classList.add("hidden");
+        noResultsState?.classList.remove("hidden");
+      } else {
+        grid?.classList.remove("hidden");
+        noResultsState?.classList.add("hidden");
+      }
+    };
+
+    // Inicializar opciones habilitadas basadas en la selección por defecto
+    actualizarOpcionesFiltros();
+
+    // Alternar estado activo del botón de apoyo económico
+    apoyoBtn.addEventListener("click", () => {
+      const isActive = apoyoBtn.getAttribute("data-active") === "true";
+      const nextActive = !isActive;
+      apoyoBtn.setAttribute("data-active", String(nextActive));
+
+      if (nextActive) {
+        apoyoBtn.classList.remove("bg-white", "text-slate-700", "border-slate-300", "dark:bg-slate-900", "dark:text-slate-200", "dark:border-slate-700");
+        apoyoBtn.classList.add("bg-primario-600", "text-white", "border-primario-600", "dark:bg-primario-600", "dark:text-white", "dark:border-primario-600");
+      } else {
+        apoyoBtn.classList.add("bg-white", "text-slate-700", "border-slate-300", "dark:bg-slate-900", "dark:text-slate-200", "dark:border-slate-700");
+        apoyoBtn.classList.remove("bg-primario-600", "text-white", "border-primario-600", "dark:bg-primario-600", "dark:text-white", "dark:border-primario-600");
+      }
+
+      aplicarFiltros();
+    });
+
+    // Escuchar cambios en Nivel y actualizar opciones
+    nivelSelect?.addEventListener("change", () => {
+      actualizarOpcionesFiltros();
+      aplicarFiltros();
+    });
+
+    // Escuchar cambios en Escuela y actualizar opciones
+    escuelaSelect?.addEventListener("change", () => {
+      actualizarOpcionesFiltros();
+      aplicarFiltros();
+    });
+
+    // Escuchar cambios en Estado y actualizar opciones de municipios/alcaldías
+    estadoSelect?.addEventListener("change", () => {
+      actualizarOpcionesFiltros();
+      aplicarFiltros();
+    });
+
+    // Registrar los demás escuchadores de eventos
+    searchInput?.addEventListener("input", aplicarFiltros);
+    carreraSelect?.addEventListener("change", aplicarFiltros);
+    municipioSelect?.addEventListener("change", aplicarFiltros);
+
+    // Evitar recarga al enviar formulario en esta misma página
+    const form = searchInput?.closest("form");
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      aplicarFiltros();
+    });
+
+    // Cargar término inicial desde la URL si existe
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get("q");
+    if (query && searchInput) {
+      searchInput.value = query;
+      aplicarFiltros();
+    }
+  }
+</script>

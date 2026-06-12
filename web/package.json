@@ -1,0 +1,24 @@
+{
+  "name": "serviciosocialmx-web",
+  "description": "Frontend estático de ServicioSocialMX construido con Astro y Tailwind CSS",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@fontsource/geist": "^5.2.9",
+    "@fontsource/instrument-sans": "^5.2.8",
+    "@lucide/astro": "^1.18.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "astro": "^6.4.6",
+    "tailwindcss": "^4.1.0"
+  },
+  "overrides": {
+    "vite": "^7"
+  }
+}

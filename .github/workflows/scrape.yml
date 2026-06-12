@@ -1,0 +1,134 @@
+# Workflow de scraping automático
+#
+# Ejecuta el scraper cada 3 semanas (sábados de madrugada, hora CDMX),
+# sincroniza el JSON con el frontend y hace commit de los cambios si los
+# hay. El commit dispara a su vez el workflow de despliegue (deploy.yml),
+# que reconstruye y publica el sitio.
+#
+# El cron de GitHub no soporta "cada 3 semanas", así que el cron corre
+# todos los sábados y el job `cadencia` deja pasar solo las semanas que
+# tocan (múltiplos de 3 desde el sábado de referencia). Las ejecuciones
+# manuales (workflow_dispatch) no pasan por esa compuerta.
+#
+# Reanudación: si la corrida se corta (timeout, error de red), el paso
+# final comitea scraper/output/avance.json junto con el JSON parcial.
+# La siguiente ejecución encuentra el avance en el checkout y reanuda
+# desde ahí; al completarse, el scraper borra el avance y el commit
+# registra también ese borrado. Se persiste por commit y no con
+# actions/cache porque los caches son inmutables y restore-keys no
+# garantiza devolver el más reciente.
+
+name: Scraping de convocatorias
+
+on:
+  # Todos los sábados a las 09:00 UTC (03:00 CDMX); el job `cadencia`
+  # filtra para que el scraping efectivo sea cada 3 semanas.
+  schedule:
+    - cron: "0 9 * * 6"
+  # Permite lanzarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
+
+permissions:
+  # Necesario para que el workflow pueda hacer commit y push
+  contents: write
+
+# Evita corridas simultáneas (cron + manual, o dos manuales) que
+# pisarían scraper/output o harían push al mismo tiempo. No se cancela
+# la que está en curso: la nueva espera en cola.
+concurrency:
+  group: scraping-convocatorias
+  cancel-in-progress: false
+
+jobs:
+  cadencia:
+    runs-on: ubuntu-latest
+    outputs:
+      ejecutar: ${{ steps.calcular.outputs.ejecutar }}
+    steps:
+      - name: Decidir si esta semana toca scraping
+        id: calcular
+        run: |
+          # Las ejecuciones manuales siempre pasan
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "ejecutar=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Primer sábado en que debe ejecutarse el scraper (semana 0
+          # del ciclo); las semanas múltiplo de 3 contadas desde aquí
+          # son las que corren. Cambiar esta fecha desfasa el ciclo.
+          referencia=$(date -u -d "2026-06-13" +%s)
+          ahora=$(date -u +%s)
+          semanas=$(( (ahora - referencia) / 604800 ))
+          if (( semanas % 3 == 0 )); then
+            echo "Semana $semanas del ciclo: toca scraping."
+            echo "ejecutar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Semana $semanas del ciclo: no toca (corre cada 3 semanas)."
+            echo "ejecutar=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  scrape:
+    needs: cadencia
+    if: needs.cadencia.outputs.ejecutar == 'true'
+    runs-on: ubuntu-latest
+    # Margen bajo el límite duro de 6 h de GitHub Actions para que los
+    # pasos posteriores al scraper alcancen a comitear el avance
+    timeout-minutes: 350
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Instalar dependencias del scraper
+        working-directory: scraper
+        run: pip install -r requirements.txt
+
+      # Una corrida completa del portal tarda varias horas; si excede
+      # este límite, el paso falla y los siguientes comitean el avance
+      # para que la próxima ejecución (o un relanzamiento manual) reanude.
+      - name: Ejecutar el scraper
+        working-directory: scraper
+        timeout-minutes: 320
+        run: python -m src.main
+
+      # Solo con corrida completa: no publicar datos parciales en el sitio
+      - name: Sincronizar datos con el frontend
+        run: python scripts/sync_data.py
+
+      # Corre también si el scraper falló o se cortó por tiempo (pero no
+      # si el job fue cancelado a mano). Sin avance.json la corrida fue
+      # completa y se comitean los datos finales; con avance.json se
+      # comitea el estado parcial para reanudar después. sync_data.py no
+      # corre en corridas parciales, así que el JSON del frontend (y por
+      # tanto el sitio) solo cambia con datos completos.
+      - name: Hacer commit si hay cambios
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scraper/output/convocatorias.json web/public/data/convocatorias.json
+          if [ -f scraper/output/avance.json ]; then
+            # -f porque avance.json está en .gitignore (pensado para
+            # corridas locales; en CI sí queremos persistirlo)
+            git add -f scraper/output/avance.json
+            mensaje="chore: avance parcial del scraping (corrida interrumpida)"
+          else
+            # Si una corrida anterior dejó comiteado el avance, registrar
+            # su borrado ahora que la corrida se completó
+            git rm --quiet --cached --ignore-unmatch scraper/output/avance.json
+            mensaje="chore: actualización automática de convocatorias"
+          fi
+          # Solo hace commit y push si algo cambió
+          if ! git diff --cached --quiet; then
+            git commit -m "$mensaje"
+            git push
+          else
+            echo "Sin cambios en los datos; no se hace commit."
+          fi
