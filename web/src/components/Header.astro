@@ -20,35 +20,40 @@ const enlaces = [
 <header
   class="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80"
 >
-  <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-    <a href={`${base}/`} class="text-lg font-bold tracking-tight">
+  <!--
+    En móvil el nav ocupa dos filas (logo + botón de tema arriba, enlaces
+    abajo): en una sola fila no caben y los enlaces se encimaban y el botón
+    de tema quedaba fuera de la pantalla. En ≥sm vuelve a una sola fila.
+  -->
+  <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-y-1 px-4 py-3 sm:flex-nowrap sm:px-6">
+    <a href={`${base}/`} class="order-1 text-lg font-bold tracking-tight">
       Servicio<span class="text-primario-600 dark:text-primario-400">Social</span>MX
     </a>
 
-    <div class="flex items-center gap-1 sm:gap-4">
+    <!-- Botón de tema: alterna la clase "dark" en <html> y guarda la preferencia -->
+    <button
+      id="boton-tema"
+      type="button"
+      aria-label="Cambiar entre modo claro y oscuro"
+      class="order-2 ml-auto rounded-lg p-2 text-slate-600 hover:bg-slate-100 sm:order-3 sm:ml-0 dark:text-slate-300 dark:hover:bg-slate-800"
+    >
+      <!-- Sol: visible en modo oscuro -->
+      <Sun class="hidden size-5 dark:block" />
+      <!-- Luna: visible en modo claro -->
+      <Moon class="size-5 dark:hidden" />
+    </button>
+
+    <div class="order-3 flex w-full items-center justify-center gap-1 sm:order-2 sm:ml-auto sm:w-auto sm:justify-end sm:gap-4 sm:pr-2">
       {
         enlaces.map((enlace) => (
           <a
             href={enlace.href}
-            class="rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:px-3 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            class="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:px-3 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           >
             {enlace.texto}
           </a>
         ))
       }
-
-      <!-- Botón de tema: alterna la clase "dark" en <html> y guarda la preferencia -->
-      <button
-        id="boton-tema"
-        type="button"
-        aria-label="Cambiar entre modo claro y oscuro"
-        class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-      >
-        <!-- Sol: visible en modo oscuro -->
-        <Sun class="hidden size-5 dark:block" />
-        <!-- Luna: visible en modo claro -->
-        <Moon class="size-5 dark:hidden" />
-      </button>
     </div>
   </nav>
 </header>
