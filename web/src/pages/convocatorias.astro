@@ -14,6 +14,14 @@ import EmptyState from "../components/EmptyState.astro";
 import { obtenerConvocatorias } from "../utils/data";
 
 const convocatorias = obtenerConvocatorias();
+
+// Lista global de carreras: las tarjetas guardan índices en data-carreras
+// y el script la recibe como JSON para traducirlos, en lugar de repetir
+// los nombres completos en cada tarjeta (ahorra varios MB de HTML)
+const listaCarreras = Array.from(
+  new Set(convocatorias.flatMap((c) => c.carreras || []).map((c) => c.trim()))
+).sort((a, b) => a.localeCompare(b));
+const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
 ---
 
 <BaseLayout
@@ -43,7 +51,10 @@ const convocatorias = obtenerConvocatorias();
           <div>
             <div id="convocatorias-grid" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {convocatorias.map((convocatoria) => (
-                <ConvocatoriaCard convocatoria={convocatoria} />
+                <ConvocatoriaCard
+                  convocatoria={convocatoria}
+                  indicePorCarrera={indicePorCarrera}
+                />
               ))}
             </div>
             
@@ -55,6 +66,13 @@ const convocatorias = obtenerConvocatorias();
       }
     </div>
   </section>
+
+  <!-- Lista global de carreras para traducir los índices de data-carreras -->
+  <script
+    type="application/json"
+    id="lista-carreras"
+    set:html={JSON.stringify(listaCarreras)}
+  />
 </BaseLayout>
 
 <script>
@@ -66,102 +84,86 @@ const convocatorias = obtenerConvocatorias();
   const carreraSelect = document.getElementById("filtro-carrera") as HTMLSelectElement | null;
   const estadoSelect = document.getElementById("filtro-estado") as HTMLSelectElement | null;
   const municipioSelect = document.getElementById("filtro-municipio") as HTMLSelectElement | null;
+  const limpiarBtn = document.getElementById("filtro-limpiar");
   const grid = document.getElementById("convocatorias-grid");
   const noResultsState = document.getElementById("no-results-state");
   const cards = document.querySelectorAll(".convocatoria-card");
 
   if (apoyoBtn && cards.length > 0) {
-    // Función para actualizar las opciones habilitadas en Escuela, Carrera y Municipio en cascada
+    // Lista global de carreras: data-carreras de cada tarjeta y el valor
+    // que el filtro traduce a índice llevan posiciones en esta lista
+    const listaCarreras: string[] = JSON.parse(
+      document.getElementById("lista-carreras")?.textContent || "[]"
+    );
+
+    // Texto de búsqueda por tarjeta, calculado una vez aquí a partir del
+    // contenido visible y de los nombres de las carreras; tenerlo como
+    // atributo data-* duplicaba varios MB en el HTML
+    const textosBusqueda = new Map<Element, string>();
+    cards.forEach((card) => {
+      const indices = (card.getAttribute("data-carreras") || "")
+        .split(",")
+        .filter(Boolean);
+      const nombresCarreras = indices
+        .map((i) => listaCarreras[Number(i)] || "")
+        .join(" ");
+      textosBusqueda.set(
+        card,
+        `${card.textContent || ""} ${nombresCarreras}`
+          .replace(/\s+/g, " ")
+          .toLowerCase()
+      );
+    });
+
+    // Cascada de selects: las opciones que no aplican se QUITAN del DOM y
+    // se reponen desde esta copia. Ocultarlas con hidden/disabled no
+    // funciona en los selectores nativos de iOS/Android, que las ignoran.
+    const opcionesOriginales = new Map<HTMLSelectElement, HTMLOptionElement[]>();
+    [escuelaSelect, carreraSelect, municipioSelect].forEach((sel) => {
+      if (sel) opcionesOriginales.set(sel, Array.from(sel.options));
+    });
+
+    const reconstruirSelect = (
+      sel: HTMLSelectElement | null,
+      aplica: (opcion: HTMLOptionElement) => boolean
+    ) => {
+      if (!sel) return;
+      const valorActual = sel.value;
+      const visibles = (opcionesOriginales.get(sel) || []).filter(
+        (opcion) => !opcion.value || aplica(opcion) // la opción "Todas..." siempre queda
+      );
+      sel.replaceChildren(...visibles);
+      // Conservar la selección si sigue disponible; si no, volver a "Todas"
+      sel.value = visibles.some((opcion) => opcion.value === valorActual)
+        ? valorActual
+        : "";
+    };
+
+    // Actualiza las opciones de Escuela, Carrera y Municipio en cascada
     const actualizarOpcionesFiltros = () => {
       const nivelVal = nivelSelect?.value || "";
+
+      // 1. Escuelas según el nivel (puede resetear la escuela elegida)
+      reconstruirSelect(escuelaSelect, (opcion) => {
+        const niveles = (opcion.getAttribute("data-niveles") || "").split(",");
+        return !nivelVal || niveles.includes(nivelVal);
+      });
+
+      // 2. Carreras según nivel y escuela (leída ya reconstruida)
       const escuelaVal = escuelaSelect?.value || "";
+      reconstruirSelect(carreraSelect, (opcion) => {
+        const coincideNivel =
+          !nivelVal || opcion.getAttribute("data-nivel") === nivelVal;
+        const coincideEscuela =
+          !escuelaVal || opcion.getAttribute("data-escuela") === escuelaVal;
+        return coincideNivel && coincideEscuela;
+      });
+
+      // 3. Municipios/alcaldías según el estado
       const estadoVal = estadoSelect?.value || "";
-
-      // 1. Filtrar las escuelas según el nivel seleccionado
-      if (escuelaSelect) {
-        let escuelaValida = false;
-        Array.from(escuelaSelect.options).forEach((opcion) => {
-          if (!opcion.value) return; // Saltar "Todas las escuelas"
-
-          const nivelesEscuela = (opcion.getAttribute("data-niveles") || "").split(",");
-          
-          // Si no hay nivel seleccionado, o el nivel de la escuela coincide con el seleccionado
-          if (!nivelVal || nivelesEscuela.includes(nivelVal)) {
-            opcion.disabled = false;
-            opcion.hidden = false;
-            if (opcion.value === escuelaVal) {
-              escuelaValida = true;
-            }
-          } else {
-            opcion.disabled = true;
-            opcion.hidden = true;
-          }
-        });
-
-        // Si la escuela seleccionada actualmente ya no es válida, la reseteamos
-        if (!escuelaValida && escuelaSelect.value !== "") {
-          escuelaSelect.value = "";
-        }
-      }
-
-      // 2. Filtrar las carreras según el nivel y la escuela seleccionados
-      if (carreraSelect) {
-        const escuelaActual = escuelaSelect?.value || "";
-        let carreraValida = false;
-
-        Array.from(carreraSelect.options).forEach((opcion) => {
-          if (!opcion.value) return; // Saltar "Todas las carreras"
-
-          const escuelaOpcion = opcion.getAttribute("data-escuela") || "";
-          const nivelOpcion = opcion.getAttribute("data-nivel") || "";
-
-          // Comprobar coincidencia con Nivel y Escuela
-          const coincideNivel = !nivelVal || nivelOpcion === nivelVal;
-          const coincideEscuela = !escuelaActual || escuelaOpcion === escuelaActual;
-
-          if (coincideNivel && coincideEscuela) {
-            opcion.disabled = false;
-            opcion.hidden = false;
-            if (opcion.value === carreraSelect.value) {
-              carreraValida = true;
-            }
-          } else {
-            opcion.disabled = true;
-            opcion.hidden = true;
-          }
-        });
-
-        // Si la carrera seleccionada actualmente ya no es válida, la reseteamos
-        if (!carreraValida && carreraSelect.value !== "") {
-          carreraSelect.value = "";
-        }
-      }
-
-      // 3. Filtrar los municipios/alcaldías según el estado seleccionado
-      if (municipioSelect) {
-        let municipioValido = false;
-        Array.from(municipioSelect.options).forEach((opcion) => {
-          if (!opcion.value) return; // Saltar "Todos los municipios"
-
-          const estadoOpcion = opcion.getAttribute("data-estado") || "";
-
-          if (!estadoVal || estadoOpcion === estadoVal) {
-            opcion.disabled = false;
-            opcion.hidden = false;
-            if (opcion.value === municipioSelect.value) {
-              municipioValido = true;
-            }
-          } else {
-            opcion.disabled = true;
-            opcion.hidden = true;
-          }
-        });
-
-        // Si la alcaldía/municipio seleccionado ya no es válido, lo reseteamos
-        if (!municipioValido && municipioSelect.value !== "") {
-          municipioSelect.value = "";
-        }
-      }
+      reconstruirSelect(municipioSelect, (opcion) => {
+        return !estadoVal || opcion.getAttribute("data-estado") === estadoVal;
+      });
     };
 
     // Función principal para aplicar filtros
@@ -176,11 +178,15 @@ const convocatorias = obtenerConvocatorias();
 
       let visibleCount = 0;
 
+      // El select de carrera guarda nombres; las tarjetas, índices
+      const carreraIdx =
+        carreraVal === "" ? "" : String(listaCarreras.indexOf(carreraVal));
+
       cards.forEach((cardEl) => {
         const card = cardEl as HTMLElement;
 
         // 1. Filtro por Búsqueda de Texto
-        const searchText = card.getAttribute("data-search-text") || "";
+        const searchText = textosBusqueda.get(card) || "";
         const matchesSearch = !searchVal || searchText.includes(searchVal);
 
         // 2. Filtro por Apoyo Económico
@@ -195,9 +201,9 @@ const convocatorias = obtenerConvocatorias();
         const cardEscuelas = (card.getAttribute("data-escuelas") || "").split(",");
         const matchesEscuela = !escuelaVal || cardEscuelas.includes(escuelaVal);
 
-        // 5. Filtro por Carrera
-        const cardCarreras = (card.getAttribute("data-carreras") || "").split("|");
-        const matchesCarrera = !carreraVal || cardCarreras.includes(carreraVal);
+        // 5. Filtro por Carrera (índices en la lista global)
+        const cardCarreras = (card.getAttribute("data-carreras") || "").split(",");
+        const matchesCarrera = !carreraVal || cardCarreras.includes(carreraIdx);
 
         // 6. Filtro por Estado y Municipio
         const cardEntidad = card.getAttribute("data-entidad") || "";
@@ -236,20 +242,34 @@ const convocatorias = obtenerConvocatorias();
     // Inicializar opciones habilitadas basadas en la selección por defecto
     actualizarOpcionesFiltros();
 
-    // Alternar estado activo del botón de apoyo económico
-    apoyoBtn.addEventListener("click", () => {
-      const isActive = apoyoBtn.getAttribute("data-active") === "true";
-      const nextActive = !isActive;
-      apoyoBtn.setAttribute("data-active", String(nextActive));
-
-      if (nextActive) {
+    // Fija el estado (lógico y visual) del botón de apoyo económico
+    const fijarApoyo = (activo: boolean) => {
+      apoyoBtn.setAttribute("data-active", String(activo));
+      if (activo) {
         apoyoBtn.classList.remove("bg-white", "text-slate-700", "border-slate-300", "dark:bg-slate-900", "dark:text-slate-200", "dark:border-slate-700");
         apoyoBtn.classList.add("bg-primario-600", "text-white", "border-primario-600", "dark:bg-primario-600", "dark:text-white", "dark:border-primario-600");
       } else {
         apoyoBtn.classList.add("bg-white", "text-slate-700", "border-slate-300", "dark:bg-slate-900", "dark:text-slate-200", "dark:border-slate-700");
         apoyoBtn.classList.remove("bg-primario-600", "text-white", "border-primario-600", "dark:bg-primario-600", "dark:text-white", "dark:border-primario-600");
       }
+    };
 
+    // Alternar estado activo del botón de apoyo económico
+    apoyoBtn.addEventListener("click", () => {
+      fijarApoyo(apoyoBtn.getAttribute("data-active") !== "true");
+      aplicarFiltros();
+    });
+
+    // Botón "Limpiar filtros": restablece búsqueda, apoyo y todos los selects
+    limpiarBtn?.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      fijarApoyo(false);
+      [nivelSelect, escuelaSelect, carreraSelect, estadoSelect, municipioSelect].forEach(
+        (sel) => {
+          if (sel) sel.value = "";
+        }
+      );
+      actualizarOpcionesFiltros();
       aplicarFiltros();
     });
 

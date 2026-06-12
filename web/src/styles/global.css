@@ -67,3 +67,13 @@
     @apply font-titulos;
   }
 }
+
+/*
+ * Renderizado diferido de las tarjetas: con miles de convocatorias en el
+ * DOM, el navegador solo maqueta y pinta las cercanas al viewport. El
+ * tamaño intrínseco reserva espacio aproximado para que el scroll no salte.
+ */
+.convocatoria-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 380px;
+}

@@ -40,6 +40,13 @@ export function categorizarCarrera(carrera: string): CarreraInfo {
     } else {
       nivel = "superior";
     }
+  } else if (
+    nombreUpper.includes("TÉCNICO") ||
+    nombreUpper.includes("TECNICO")
+  ) {
+    // Carreras técnicas en escuelas sin prefijo conocido (p. ej.
+    // "ESEO TÉCNICO EN ENFERMERÍA") también son de nivel medio superior
+    nivel = "medio-superior";
   } else {
     nivel = "superior";
   }
