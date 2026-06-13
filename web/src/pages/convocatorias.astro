@@ -22,6 +22,10 @@ const listaCarreras = Array.from(
   new Set(convocatorias.flatMap((c) => c.carreras || []).map((c) => c.trim()))
 ).sort((a, b) => a.localeCompare(b));
 const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
+
+// Tarjetas visibles al cargar; el resto llega oculto y se revela por
+// lotes con "Mostrar más" (debe coincidir con LOTE_INICIAL del script)
+const LOTE_INICIAL = 30;
 ---
 
 <BaseLayout
@@ -50,14 +54,26 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
         ) : (
           <div>
             <div id="convocatorias-grid" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {convocatorias.map((convocatoria) => (
+              {convocatorias.map((convocatoria, indice) => (
                 <ConvocatoriaCard
                   convocatoria={convocatoria}
                   indicePorCarrera={indicePorCarrera}
+                  oculta={indice >= LOTE_INICIAL}
                 />
               ))}
             </div>
-            
+
+            <!-- Revela el siguiente lote de tarjetas (el script lo gestiona) -->
+            <div id="mostrar-mas-contenedor" class="mt-8 flex justify-center">
+              <button
+                id="mostrar-mas"
+                type="button"
+                class="rounded-2xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Mostrar más
+              </button>
+            </div>
+
             <div id="no-results-state" class="hidden py-8">
               <EmptyState mensaje="No encontramos convocatorias que coincidan con tus filtros." />
             </div>
@@ -87,7 +103,18 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
   const limpiarBtn = document.getElementById("filtro-limpiar");
   const grid = document.getElementById("convocatorias-grid");
   const noResultsState = document.getElementById("no-results-state");
+  const mostrarMasBtn = document.getElementById("mostrar-mas");
+  const mostrarMasContenedor = document.getElementById("mostrar-mas-contenedor");
   const cards = document.querySelectorAll(".convocatoria-card");
+
+  // Revelado por lotes: solo se muestran las primeras `limiteVisible`
+  // coincidencias y "Mostrar más" amplía el tope. Maquetar las 5,000
+  // tarjetas de golpe congelaba el scroll en móvil (una sola columna).
+  // LOTE_INICIAL debe coincidir con el del frontmatter (tarjetas que el
+  // servidor manda visibles).
+  const LOTE_INICIAL = 30;
+  const LOTE_EXTRA = 60;
+  let limiteVisible = LOTE_INICIAL;
 
   if (apoyoBtn && cards.length > 0) {
     // Lista global de carreras: data-carreras de cada tarjeta y el valor
@@ -132,6 +159,16 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
       const visibles = (opcionesOriginales.get(sel) || []).filter(
         (opcion) => !opcion.value || aplica(opcion) // la opción "Todas..." siempre queda
       );
+
+      // No tocar el select si sus opciones no cambian: reconstruirlo
+      // mientras el picker nativo está abierto (móvil) lo cierra y
+      // descarta lo que el usuario estaba eligiendo
+      const actuales = Array.from(sel.options);
+      const sinCambios =
+        actuales.length === visibles.length &&
+        visibles.every((opcion, i) => opcion === actuales[i]);
+      if (sinCambios) return;
+
       sel.replaceChildren(...visibles);
       // Conservar la selección si sigue disponible; si no, volver a "Todas"
       sel.value = visibles.some((opcion) => opcion.value === valorActual)
@@ -176,7 +213,7 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
       const estadoVal = estadoSelect?.value || "";
       const municipioVal = municipioSelect?.value || "";
 
-      let visibleCount = 0;
+      let coincidencias = 0;
 
       // El select de carrera guarda nombres; las tarjetas, índices
       const carreraIdx =
@@ -213,7 +250,7 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
         const matchesMunicipio = !municipioVal || cardUbicacion === municipioVal;
         const matchesUbicacion = matchesEstado && matchesMunicipio;
 
-        const visible =
+        const coincide =
           matchesSearch &&
           matchesApoyo &&
           matchesNivel &&
@@ -221,16 +258,25 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
           matchesCarrera &&
           matchesUbicacion;
 
-        if (visible) {
-          card.classList.remove("hidden");
-          visibleCount++;
+        // Solo se muestran las primeras `limiteVisible` coincidencias;
+        // el resto queda oculto hasta pulsar "Mostrar más"
+        if (coincide) {
+          coincidencias++;
+          card.classList.toggle("hidden", coincidencias > limiteVisible);
         } else {
           card.classList.add("hidden");
         }
       });
 
+      // Botón "Mostrar más": visible solo si quedan coincidencias ocultas
+      const restantes = coincidencias - limiteVisible;
+      if (mostrarMasBtn && mostrarMasContenedor) {
+        mostrarMasContenedor.classList.toggle("hidden", restantes <= 0);
+        mostrarMasBtn.textContent = `Mostrar más (${Math.max(restantes, 0).toLocaleString("es-MX")} restantes)`;
+      }
+
       // Mostrar/ocultar estado vacío
-      if (visibleCount === 0) {
+      if (coincidencias === 0) {
         grid?.classList.add("hidden");
         noResultsState?.classList.remove("hidden");
       } else {
@@ -238,6 +284,18 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
         noResultsState?.classList.add("hidden");
       }
     };
+
+    // Cualquier cambio de filtro o búsqueda reinicia el lote visible
+    const aplicarFiltrosDesdeCero = () => {
+      limiteVisible = LOTE_INICIAL;
+      aplicarFiltros();
+    };
+
+    // Revelar el siguiente lote
+    mostrarMasBtn?.addEventListener("click", () => {
+      limiteVisible += LOTE_EXTRA;
+      aplicarFiltros();
+    });
 
     // Inicializar opciones habilitadas basadas en la selección por defecto
     actualizarOpcionesFiltros();
@@ -270,37 +328,37 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
         }
       );
       actualizarOpcionesFiltros();
-      aplicarFiltros();
+      aplicarFiltrosDesdeCero();
     });
 
     // Escuchar cambios en Nivel y actualizar opciones
     nivelSelect?.addEventListener("change", () => {
       actualizarOpcionesFiltros();
-      aplicarFiltros();
+      aplicarFiltrosDesdeCero();
     });
 
     // Escuchar cambios en Escuela y actualizar opciones
     escuelaSelect?.addEventListener("change", () => {
       actualizarOpcionesFiltros();
-      aplicarFiltros();
+      aplicarFiltrosDesdeCero();
     });
 
     // Escuchar cambios en Estado y actualizar opciones de municipios/alcaldías
     estadoSelect?.addEventListener("change", () => {
       actualizarOpcionesFiltros();
-      aplicarFiltros();
+      aplicarFiltrosDesdeCero();
     });
 
     // Registrar los demás escuchadores de eventos
-    searchInput?.addEventListener("input", aplicarFiltros);
-    carreraSelect?.addEventListener("change", aplicarFiltros);
-    municipioSelect?.addEventListener("change", aplicarFiltros);
+    searchInput?.addEventListener("input", aplicarFiltrosDesdeCero);
+    carreraSelect?.addEventListener("change", aplicarFiltrosDesdeCero);
+    municipioSelect?.addEventListener("change", aplicarFiltrosDesdeCero);
 
     // Evitar recarga al enviar formulario en esta misma página
     const form = searchInput?.closest("form");
     form?.addEventListener("submit", (e) => {
       e.preventDefault();
-      aplicarFiltros();
+      aplicarFiltrosDesdeCero();
     });
 
     // Cargar término inicial desde la URL si existe
@@ -308,7 +366,9 @@ const indicePorCarrera = new Map(listaCarreras.map((c, i) => [c, i]));
     const query = urlParams.get("q");
     if (query && searchInput) {
       searchInput.value = query;
-      aplicarFiltros();
     }
+
+    // Primera pasada: respeta el lote inicial y rotula "Mostrar más"
+    aplicarFiltros();
   }
 </script>

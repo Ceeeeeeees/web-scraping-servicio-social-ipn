@@ -28,9 +28,16 @@ interface Props {
    * de tarjetas, repetir los nombres pesaba varios MB de HTML.
    */
   indicePorCarrera?: Map<string, number>;
+  /**
+   * Renderiza la tarjeta oculta (display: none). La página de
+   * convocatorias muestra solo las primeras N y revela el resto por
+   * lotes con "Mostrar más"; maquetar miles de tarjetas de golpe
+   * congelaba el scroll en móvil.
+   */
+  oculta?: boolean;
 }
 
-const { convocatoria, indicePorCarrera } = Astro.props;
+const { convocatoria, indicePorCarrera, oculta = false } = Astro.props;
 
 // Limpiar emojis de los textos del portal de origen
 const tituloLimpio = formatearTitulo(eliminarEmojis(convocatoria.titulo));
@@ -77,7 +84,7 @@ const etiquetasEstado: Record<Convocatoria["estado"], string> = {
 ---
 
 <article
-  class="convocatoria-card"
+  class:list={["convocatoria-card", { hidden: oculta }]}
   data-apoyo={convocatoria.apoyoEconomico ? "true" : "false"}
   data-ubicacion={ubicacionValor}
   data-entidad={entidadValor}
